@@ -1,0 +1,18 @@
+{
+  "name": "liefergit",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node app"
+  },
+  "dependencies": {
+      "express": ">= 3",
+      "github": "*",
+      "underscore": "*",
+      "jade": "*"
+  },
+  "engines": {
+      "node": ">= 0.8",
+      "npm": "1.1.x"
+  }
+}

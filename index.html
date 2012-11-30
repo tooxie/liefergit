@@ -1,0 +1,47 @@
+
+<html>
+  <head>
+    <title>Liefergit</title>
+    <script src="https://raw.github.com/michael/github/master/lib/base64.js"></script>
+    <script src="http://underscorejs.org/underscore-min.js"></script>
+    <script src="http://backbonejs.org/backbone-min.js"></script>
+    <script src="http://code.jquery.com/jquery.min.js"></script>
+    <script src="https://raw.github.com/michael/github/master/github.js"></script>
+
+    <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet">
+    <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+
+    <script src="/javascripts/index.js"></script>
+    <link rel="stylesheet/less" type="text/css" href="/stylesheets/styles.less">
+    <script src="http://cloud.github.com/downloads/cloudhead/less.js/less-1.3.1.min.js"></script>
+  </head>
+  <body>
+    <div id="wrapper">
+      <h1>LOL git</h1>
+
+      <div class="login">
+        <span>Username:</span><input id="username" type="text"/> <br/>
+        <span>Password:</span><input id="password" type="password"/>
+        <button id="login">login</button>
+      </div>
+
+      <div class="main">
+        <h2>Utilitybelt</h2>
+        <div class="ub" data-repo="utilitybelt.js">
+          <div class="cf"></div> -> <div class="submodule"></div> <button class="update">Update</button>
+        </div>
+
+        <h2>Coredesign</h2>
+        <div class="cd" data-repo="coredesign">
+          <div class="cf"></div> -> <div class="submodule"></div> <button class="update">Update</button>
+        </div>
+
+        <h2>AU_design</h2>
+        <div class="au" data-repo="AU_design">
+          <div class="cf"></div> -> <div class="submodule"></div> <button class="update">Update</button>
+        </div>
+      </div>
+
+    </div>
+  </body>
+</html>
