@@ -9,7 +9,8 @@
       "express": ">= 3",
       "github": "*",
       "underscore": "*",
-      "jade": "*"
+      "jade": "*",
+      "jquery": "*"
   },
   "engines": {
       "node": ">= 0.8",
