@@ -10,7 +10,8 @@ var app = config.app;
 var routes = {
     '/cf': routes.cf,
     '/': routes.ui,
-    '/login': routes.login
+    '/login': routes.login,
+    '/token/*': routes.token
 }
 _.each(routes, function(handler, route){
     app.get(route, handler);
