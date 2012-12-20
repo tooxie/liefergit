@@ -1,24 +1,115 @@
-window.liefergit = (function (module) {
+window.liefergit = (function (module, $) {
+
+    var createModels = function (lgit) {
+        var models = {
+            Repo: Backbone.Model.extend({
+                initialize: function (options) {
+                    var user = this.get('user');
+                    var repoName = this.get('name');
+
+                    var githubRepo = lgit.github.getRepo(user, repoName);
+                    this.set('githubRepo', githubRepo);
+                },
+
+                getTree: function () {
+                    var treeDeferred = $.Deferred();
+                    var githubRepo = this.get('githubRepo');
+                    githubRepo.getTree('master?recursive=true', function(err, tree) {
+                        treeDeferred.resolve(tree);
+                    });
+                    return treeDeferred;
+                },
+
+                getShasForPaths: function (paths) {
+                    var shasDeferred = $.Deferred();
+
+                    $.when( this.getTree() ).then(function (tree) {
+                        var shas = _.map(paths, function (path) {
+                            var sha = _.find(tree, function(subtree){
+                                return subtree.path == path;
+                            }).sha;
+                            return sha;
+                        });
+                        shasDeferred.resolve(shas);
+                    });
+
+                    return shasDeferred;
+                },
+
+                getRef: function (ref) {
+                    var refDeferred = $.Deferred();
+                    var githubRepo = this.get('githubRepo');
+                    githubRepo.getRef(ref, function (err, sha) {
+                        refDeferred.resolve(sha);
+                    });
+                    return refDeferred;
+                },
+
+                getCommits: function () {
+                    var commitsDeferred = $.Deferred();
+                    var githubRepo = this.get('githubRepo');
+                    githubRepo.getRef(ref, function (err, commits) {
+                        commitsDeferred.resolve(commits);
+                    });
+                    return commitsDeferred;
+                }
+
+
+            })
+        };
+        return models;
+    };
+
+    var createCollections = function (models) {
+        var collections = {
+            Repos: Backbone.Collection.extend({
+                model: models.Repo,
+
+                getPaths: function () {
+                    return this.pluck("path");
+                }
+            })
+        }
+
+        return collections;
+    };
+
+
+
+    var LieferGit = function (options) {
+        this.github = options.github;
+        this.user = options.user;
+
+        this.models = createModels(this);
+        this.collections = createCollections(this.models);
+
+    }
 
     var createAuthenticationCB = function(successCB) {
         return function (event) {
             var code = event.data;
+
             // Fetch access token
-            $.getJSON('/token/' + code, function (response) {
-                access_token = response.access_token;
+            var tokenUrl = '/token/' + code;
+            $.getJSON(tokenUrl, function (response) {
+                accessToken = response.access_token;
                 //we are now authentified ---> NEAT
                 var github = new Github({
-                    token: access_token,
+                    token: accessToken,
                     auth: "oauth"
                 });
                 
-                $.getJSON('https://api.github.com/user?access_token=' + access_token, function (user) {
-                        successCB({
-                            github: github,
-                            user: user
-                        });
+                var githubUserUrl = 'https://api.github.com/user?access_token=' + accessToken;
+                $.getJSON(githubUserUrl, function (user) {
+                    successCB(new LieferGit({
+                        github: github,
+                        user: user
+                    }));
                 });
             });
+
+            // Remove the event listener again after it was called
+            window.removeEventListener('message', this);
         }
     };
 
@@ -29,18 +120,26 @@ window.liefergit = (function (module) {
             '&scope=repo,user');
     };
 
-    module.initialize = function (clientId, successCB) {
+
+    /*
+        EXPORTS
+     */
+    
+    module.create = function (clientId, successCB) {
         window.addEventListener('message', createAuthenticationCB(successCB));
         startOAuthAuthentication(clientId);
     };
 
+
+
     return module;
 
-}(window.liefergit || {}));
+}(window.liefergit || _.extend({}, Backbone.Events), $));
 
 $(document).ready(function(){
     var loginData = {};
     var access_token;
+    var lgit;
     var github;
     var userObj;
     var cfRepo;
@@ -66,42 +165,65 @@ $(document).ready(function(){
         path: "core/static/AU_design"
     }];
 
+    var submoduleRepos = [{
+        user: repo_user,
+        name: "utilitybelt.js",
+        path: "core/static/utilitybelt"
+    }, {
+        user: repo_user,
+        name: "coredesign",
+        path: "core/static/coredesign"
+    }, {
+        user: repo_user,
+        name: "AU_design",
+        path: "core/static/AU_design"
+    }];
+
+    var submodules;
+
     var clientId = '1c5ca6611f3f2ca17021';
 
-    iefergit.initialize(clientId, function(githubObjects){
-        github = githubObjects.github;
-        userObj = githubObjects.user;
+    $('#connect').click(function () {
+        liefergit.create(clientId, function(lGit){
+            github = lGit.github;
+            userObj = lGit.user;
+            lgit = lGit;
+            initRepoViews();
+        });
 
-        initRepoViews();
     });
 
     var cfRepoLatest;
     function initRepoViews(){
         $(".main").show();
-        upstreamRepo = github.getRepo(upstream_user, "core_frontend");
-        //init dom: core_frontend
-        cfRepo = github.getRepo(repo_user, "core_frontend");
-        // cfRepo.getTree('master', function(err, tree) {
-        //     debugger
-        // });
+        upstreamRepo = new lgit.models.Repo({
+            user: upstream_user,
+            name: "core_frontend"
+        }).get('githubRepo');
 
-        cfRepo.getTree('master?recursive=true', function(err, tree) {
-            _.each(repos, function(repoObj){
-                var sha = _.find(tree, function(subtree){
-                    return subtree.path == repoObj.path;
-                }).sha;
+        submodules = new lgit.collections.Repos(submoduleRepos);
+
+        //init dom: core_frontend
+        cfLGitRepo = new lgit.models.Repo({
+            user: repo_user,
+            name: "core_frontend"
+        });
+        cfRepo = cfLGitRepo.get('githubRepo');
+
+        var paths = _.pluck(repos, 'path');
+
+        $.when(cfLGitRepo.getShasForPaths(paths)).then(function (shas) {
+            _.each(shas, function (sha, i) {
+                var repoObj = repos[i];
                 $(repoObj.selector + " .cf").text(sha);
             });
         });
-        //var lePath = ".git/modules/core/static/utilitybelt/refs/heads/master";
-        var lePath = "core/static/utilitybelt";
 
-        _.each(repos, function(repoObj){
-            var repo = github.getRepo(repo_user, repoObj.name);
-            repoObj.repo = repo;
-            repo.getRef('heads/master', function(err, sha) {
+        submodules.each(function (repo, i) {
+            $.when(repo.getRef('heads/master')).then(function (sha) {
+                var repoObj = repos[i];
                 $(repoObj.selector + " .submodule").text(sha);
-            });
+            })
         });
 
     }
@@ -149,46 +271,9 @@ $(document).ready(function(){
                     });
                 });
             });
-            
-            // cfRepo.postTree(theTree, function(err, treeSha){
-            //     debugger
-            //     if(err) return;
-            //     cfRepo.commit(headSha, treeSha, "Updated submodule test", function(err, res){
-            //         debugger
-            //     });
-            // });
 
         });
 
-
-        this.postTree = function(tree, cb) {
-            _request("POST", repoPath + "/git/trees", { "tree": tree }, function(err, res) {
-                if (err) return cb(err);
-                cb(null, res.sha);
-            });
-        };
-
-        // cfRepo.updateTree(null, repoObj.path, sha, function(err){
-        //     debugger
-        // });
-        /*
-        cfRepo.write(branch_name, repoObj.path, submoduleContent, commitMsg, function(err) {
-            debugger
-            var pull = {
-                title: commitMsg,
-                body: "",
-                base: branch_name,
-                head: repo_user + ":" + branch_name,
-            };
-            upstreamRepo.createPullRequest(pull, function(err, pullRequest) {
-                debugger;
-                if (err) {
-                    alert(err);
-                } else {
-                    
-                }
-            });
-        });
-        */
+       
     });
 });
