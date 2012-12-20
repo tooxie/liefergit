@@ -1,3 +1,43 @@
+window.liefergit = (function (module) {
+
+    var createAuthenticationCB = function(successCB) {
+        return function (event) {
+            var code = event.data;
+            // Fetch access token
+            $.getJSON('/token/' + code, function (response) {
+                access_token = response.access_token;
+                //we are now authentified ---> NEAT
+                var github = new Github({
+                    token: access_token,
+                    auth: "oauth"
+                });
+                
+                $.getJSON('https://api.github.com/user?access_token=' + access_token, function (user) {
+                        successCB({
+                            github: github,
+                            user: user
+                        });
+                });
+            });
+        }
+    };
+
+    var startOAuthAuthentication = function(clientId){
+        window.open('https://github.com' + 
+            '/login/oauth/authorize' + 
+            '?client_id='+ clientId +
+            '&scope=repo,user');
+    };
+
+    module.initialize = function (clientId, successCB) {
+        window.addEventListener('message', createAuthenticationCB(successCB));
+        startOAuthAuthentication(clientId);
+    };
+
+    return module;
+
+}(window.liefergit || {}));
+
 $(document).ready(function(){
     var loginData = {};
     var access_token;
@@ -26,39 +66,13 @@ $(document).ready(function(){
         path: "core/static/AU_design"
     }];
 
-    var client_id = '1c5ca6611f3f2ca17021';
-    /*
-    *    OAUTH - based auth
-    */
-    $("#connect").click(function(){
-            window.open('https://github.com' + 
-            '/login/oauth/authorize' + 
-            '?client_id='+ client_id+
-            '&scope=repo,user');
-    });
+    var clientId = '1c5ca6611f3f2ca17021';
 
-    $(".main").hide();
+    iefergit.initialize(clientId, function(githubObjects){
+        github = githubObjects.github;
+        userObj = githubObjects.user;
 
-    // Step 4
-    window.addEventListener('message', function (event) {
-        var code = event.data;
-        $('#code').val(code);
-
-        // Step 5
-        $.getJSON('/token/' + code, function (params) {
-            // Step 7
-            access_token = params.access_token;
-            //we are now authentified ---> NEAT
-            github = new Github({
-                token: access_token,
-                auth: "oauth"
-            });
-            
-            $.getJSON('https://api.github.com/user?access_token=' + access_token, function (user) {
-                    userObj = user;
-                    initRepoViews();
-            });
-        });
+        initRepoViews();
     });
 
     var cfRepoLatest;
