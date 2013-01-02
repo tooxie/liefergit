@@ -11,35 +11,19 @@ window.liefergit = (function (module, $) {
                     this.set('githubRepo', githubRepo);
                 },
 
-                getTree: function () {
+                getTree: function (branch) {
                     var treeDeferred = $.Deferred();
                     var githubRepo = this.get('githubRepo');
-                    githubRepo.getTree('master?recursive=true', function(err, tree) {
+                    githubRepo.getTree(branch + '?recursive=true', function(err, tree) {
                         treeDeferred.resolve(tree);
                     });
                     return treeDeferred;
                 },
 
-                getShasForPaths: function (paths) {
-                    var shasDeferred = $.Deferred();
-
-                    $.when( this.getTree() ).then(function (tree) {
-                        var shas = _.map(paths, function (path) {
-                            var sha = _.find(tree, function (subtree) {
-                                return subtree.path == path;
-                            }).sha;
-                            return sha;
-                        });
-                        shasDeferred.resolve(shas);
-                    });
-
-                    return shasDeferred;
-                },
-
                 getShaForPath: function (path) {
                     var shaDeferred = $.Deferred();
 
-                    $.when( this.getTree() ).then(function (tree) {
+                    $.when( this.getTree("master") ).then(function (tree) {
                         var sha = _.find(tree, function (subtree) {
                             return subtree.path == path;
                         }).sha;
@@ -91,36 +75,84 @@ window.liefergit = (function (module, $) {
         SubmoduleRepoView: Backbone.View.extend({
             tagName: 'div',
 
+            events: {
+                'click .update': 'updateSubmoduleReference'
+            },
+
             initialize: function (options) {
 
                 this.template = options.template;
+                this.submoduleRepo = options.submoduleRepo;
+                this.originRepo = options.originRepo;
                 this.upstreamRepo = options.upstreamRepo;
-                this.repo = options.repo;
 
                 //this.updateShas();
             },
 
-            updateShas: function () {
-                var submoduleShaDeferred = this.repo.getRef("heads/master");
-                var upstreamShaDeferred = this.upstreamRepo.getShaForPath(repoPath);
 
-                $.when(submoduleShaDeferred, upstreamShaDeferred).then(_.bind(function (submoduleSha, upstreamSha) {
-                    this.submoduleSha = submoduleSha;
-                    this.upstreamSha = upstreamSha
-                }, this));
+            updateSubmoduleReference: function () {
+
+                $.when( this.submoduleRepo.getRef("heads/master") )
+                .then(_.bind(function (repoSha) {
+                    var repoName = this.submoduleRepo.get("name");
+                    var repoPath = this.submoduleRepo.get("path");
+                    var commitMsg = "Updated submodule " + repoName;
+                    var submoduleContent = "Subproject commit " + repoSha + "\n";
+
+                    var subrepoBranchName = "master";
+
+                    var originGithubRepo = this.originRepo.get("githubRepo");
+                    var originRepoUser = this.originRepo.get("user");
+
+                    var upstreamGithubRepo = this.upstreamRepo.get("githubRepo");
+
+                    debugger;
+
+                    originGithubRepo.getCommits(function(err, commits) {
+                        var coreFrontendHeadSha = commits[0].sha;
+                        var coreFrontendHeadTreeSha = commits[0].commit.tree.sha;
+                        var theTree = [{
+                          "path": repoPath,
+                          "mode": "160000", //one of 100644 for file (blob), 100755 for executable (blob), 040000 for subdirectory (tree), 160000 for submodule (commit) or 120000 for a blob that specifies the path of a symlink
+                          "type": "commit",
+                          "sha": repoSha
+                        }];
+                        originGithubRepo.postTreeFromBase(theTree, coreFrontendHeadTreeSha, function(err, updateTreeSha){
+                            if(err) return;
+                            var commitMessage = "Updating repository " + repoName;
+                            originGithubRepo.commit(coreFrontendHeadSha, updateTreeSha, commitMessage, function(error, updateCommitSha){
+                                originGithubRepo.updateHead(subrepoBranchName, updateCommitSha, function(){
+                                    var prTitle = commitMessage;
+                                    var prData = {
+                                        "title": prTitle,
+                                        "body": "A nice pull request",
+                                        "head": originRepoUser+":"+subrepoBranchName,
+                                        "base": "master"
+                                    }
+                                    upstreamGithubRepo.createPullRequest(prData, function(err, res){
+                                        debugger
+                                    });
+                                });
+                            });
+                        });
+
+                    });
+
+                },this));
+
             },
 
             render: function () {
 
-                var repoPath = this.repo.get("path");
+                var repoPath = this.submoduleRepo.get("path");
 
-                var submoduleShaDeferred = this.repo.getRef("heads/master");
+                var submoduleShaDeferred = this.submoduleRepo.getRef("heads/master");
                 var upstreamShaDeferred = this.upstreamRepo.getShaForPath(repoPath);
 
                 $.when(submoduleShaDeferred, upstreamShaDeferred).then(_.bind(function (submoduleSha, upstreamSha) {
 
                     var context = {
-                        name: this.repo.get("name"),
+                        name: this.submoduleRepo.get("name"),
                         submoduleSha: submoduleSha,
                         upstreamSha: upstreamSha
                     };
@@ -199,34 +231,13 @@ window.liefergit = (function (module, $) {
 }(window.liefergit || _.extend({}, Backbone.Events), $));
 
 $(document).ready(function(){
-    var loginData = {};
-    var access_token;
     var lgit;
-    var github;
-    var userObj;
-    var cfRepo;
-    var upstreamRepo;
-    var upstreamGitRepo;
+
     var upstream_user = "TimBeyer";
     //var repo_user = "delivero";
     var repo_user = "codazzo";
     var branch_name = "master";
     var subrepoBranchName = "master"; //the branch which will be used to issue the PR's against upstream
-
-    //init DOM: submodules
-    window.repos = [{
-        name: "utilitybelt.js",
-        selector: ".ub",
-        path: "core/static/utilitybelt"
-    }, {
-        name: "coredesign",
-        selector: ".cd",
-        path: "core/static/coredesign"
-    }, {
-        name: "AU_design",
-        selector: ".au",
-        path: "core/static/AU_design"
-    }];
 
     var submoduleRepos = [{
         user: repo_user,
@@ -249,7 +260,6 @@ $(document).ready(function(){
         var clientId = '1c5ca6611f3f2ca17021';
 
         liefergit.create(clientId, function(lGit){
-            github = lGit.github;
             userObj = lGit.user;
             lgit = lGit;
             initRepoViews();
@@ -258,7 +268,7 @@ $(document).ready(function(){
     });
 
     var cfRepoLatest;
-    
+
     function initRepoViews(){
         $(".main").show();
 
@@ -269,14 +279,18 @@ $(document).ready(function(){
             name: "core_frontend"
         });
 
-        upstreamGitRepo = upstreamRepo.get('githubRepo');
+        originRepo = new lgit.models.Repo({
+            user: repo_user,
+            name: "core_frontend"
+        });
 
         submodules = new lgit.collections.Repos(submoduleRepos);
 
         submodules.each(function (repo, i) {
             var submoduleView = new lgit.views.SubmoduleRepoView({
                 template: submoduleRepoTemplate,
-                repo: repo,
+                submoduleRepo: repo,
+                originRepo: originRepo,
                 upstreamRepo: upstreamRepo
             });
             $(".main").append(submoduleView.render().el);
@@ -284,52 +298,4 @@ $(document).ready(function(){
 
     }
 
-    //behavior
-    $(".update").click(function(){
-        var $this = $(this);
-        var repoName = $this.parent().data("repo");
-        var repoObj = _.find(repos, function(repoObj){
-            return repoObj.name == repoName;
-        });
-        var subrepoSha = $this.siblings(".submodule").text();
-        var repo = repoObj.repo;
-
-        var commitMsg = "Updated " +" submodule " + repoObj.name;
-        var submoduleContent = "Subproject commit " + subrepoSha + "\n";
-
-
-
-
-        cfRepo.getCommits(function(err, commits) {
-            var coreFrontendHeadSha = commits[0].sha;
-            var coreFrontendHeadTreeSha = commits[0].commit.tree.sha;
-            var theTree = [{
-              "path": repoObj.path,
-              "mode": "160000", //one of 100644 for file (blob), 100755 for executable (blob), 040000 for subdirectory (tree), 160000 for submodule (commit) or 120000 for a blob that specifies the path of a symlink
-              "type": "commit",
-              "sha": subrepoSha
-            }];
-            cfRepo.postTreeFromBase(theTree, coreFrontendHeadTreeSha, function(err, updateTreeSha){
-                if(err) return;
-                var commitMessage = "Updating repository " + repoObj.name;
-                cfRepo.commit(coreFrontendHeadSha, updateTreeSha, commitMessage, function(error, updateCommitSha){
-                    cfRepo.updateHead(subrepoBranchName, updateCommitSha, function(){
-                        var prTitle = commitMessage;
-                        var prData = {
-                            "title": prTitle,
-                            "body": "A nice pull request",
-                            "head": repo_user+":"+subrepoBranchName,
-                            "base": "master"
-                        }
-                        upstreamRepo.createPullRequest(prData, function(err, res){
-                            debugger
-                        });
-                    });
-                });
-            });
-
-        });
-
-       
-    });
 });
