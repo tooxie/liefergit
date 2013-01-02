@@ -25,7 +25,7 @@ window.liefergit = (function (module, $) {
 
                     $.when( this.getTree() ).then(function (tree) {
                         var shas = _.map(paths, function (path) {
-                            var sha = _.find(tree, function(subtree){
+                            var sha = _.find(tree, function (subtree) {
                                 return subtree.path == path;
                             }).sha;
                             return sha;
@@ -34,6 +34,19 @@ window.liefergit = (function (module, $) {
                     });
 
                     return shasDeferred;
+                },
+
+                getShaForPath: function (path) {
+                    var shaDeferred = $.Deferred();
+
+                    $.when( this.getTree() ).then(function (tree) {
+                        var sha = _.find(tree, function (subtree) {
+                            return subtree.path == path;
+                        }).sha;
+                        shaDeferred.resolve(sha);
+                    });
+
+                    return shaDeferred;
                 },
 
                 getRef: function (ref) {
@@ -74,6 +87,54 @@ window.liefergit = (function (module, $) {
         return collections;
     };
 
+    var views = {
+        SubmoduleRepoView: Backbone.View.extend({
+            tagName: 'div',
+
+            initialize: function (options) {
+
+                this.template = options.template;
+                this.upstreamRepo = options.upstreamRepo;
+                this.repo = options.repo;
+
+                //this.updateShas();
+            },
+
+            updateShas: function () {
+                var submoduleShaDeferred = this.repo.getRef("heads/master");
+                var upstreamShaDeferred = this.upstreamRepo.getShaForPath(repoPath);
+
+                $.when(submoduleShaDeferred, upstreamShaDeferred).then(_.bind(function (submoduleSha, upstreamSha) {
+                    this.submoduleSha = submoduleSha;
+                    this.upstreamSha = upstreamSha
+                }, this));
+            },
+
+            render: function () {
+
+                var repoPath = this.repo.get("path");
+
+                var submoduleShaDeferred = this.repo.getRef("heads/master");
+                var upstreamShaDeferred = this.upstreamRepo.getShaForPath(repoPath);
+
+                $.when(submoduleShaDeferred, upstreamShaDeferred).then(_.bind(function (submoduleSha, upstreamSha) {
+
+                    var context = {
+                        name: this.repo.get("name"),
+                        submoduleSha: submoduleSha,
+                        upstreamSha: upstreamSha
+                    };
+
+                    this.$el.empty();
+                    this.$el.append(this.template(context)); 
+
+                }, this));
+
+                return this;
+            }
+
+        })
+    };
 
 
     var LieferGit = function (options) {
@@ -82,6 +143,7 @@ window.liefergit = (function (module, $) {
 
         this.models = createModels(this);
         this.collections = createCollections(this.models);
+        this.views = views;
 
     }
 
@@ -144,6 +206,7 @@ $(document).ready(function(){
     var userObj;
     var cfRepo;
     var upstreamRepo;
+    var upstreamGitRepo;
     var upstream_user = "TimBeyer";
     //var repo_user = "delivero";
     var repo_user = "codazzo";
@@ -181,9 +244,10 @@ $(document).ready(function(){
 
     var submodules;
 
-    var clientId = '1c5ca6611f3f2ca17021';
 
     $('#connect').click(function () {
+        var clientId = '1c5ca6611f3f2ca17021';
+
         liefergit.create(clientId, function(lGit){
             github = lGit.github;
             userObj = lGit.user;
@@ -194,36 +258,28 @@ $(document).ready(function(){
     });
 
     var cfRepoLatest;
+    
     function initRepoViews(){
         $(".main").show();
+
+        var submoduleRepoTemplate = Handlebars.compile($("#sumbodule-repo-template").html());
+
         upstreamRepo = new lgit.models.Repo({
             user: upstream_user,
             name: "core_frontend"
-        }).get('githubRepo');
+        });
+
+        upstreamGitRepo = upstreamRepo.get('githubRepo');
 
         submodules = new lgit.collections.Repos(submoduleRepos);
 
-        //init dom: core_frontend
-        cfLGitRepo = new lgit.models.Repo({
-            user: repo_user,
-            name: "core_frontend"
-        });
-        cfRepo = cfLGitRepo.get('githubRepo');
-
-        var paths = _.pluck(repos, 'path');
-
-        $.when(cfLGitRepo.getShasForPaths(paths)).then(function (shas) {
-            _.each(shas, function (sha, i) {
-                var repoObj = repos[i];
-                $(repoObj.selector + " .cf").text(sha);
-            });
-        });
-
         submodules.each(function (repo, i) {
-            $.when(repo.getRef('heads/master')).then(function (sha) {
-                var repoObj = repos[i];
-                $(repoObj.selector + " .submodule").text(sha);
-            })
+            var submoduleView = new lgit.views.SubmoduleRepoView({
+                template: submoduleRepoTemplate,
+                repo: repo,
+                upstreamRepo: upstreamRepo
+            });
+            $(".main").append(submoduleView.render().el);
         });
 
     }

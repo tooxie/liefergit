@@ -26,22 +26,17 @@
 
 
       <div class="main">
-        <h2>Utilitybelt</h2>
-        <div class="ub" data-repo="utilitybelt.js">
-          <div class="cf"></div> -> <div class="submodule"></div> <button class="update">Update</button>
-        </div>
-
-        <h2>Coredesign</h2>
-        <div class="cd" data-repo="coredesign">
-          <div class="cf"></div> -> <div class="submodule"></div> <button class="update">Update</button>
-        </div>
-
-        <h2>AU_design</h2>
-        <div class="au" data-repo="AU_design">
-          <div class="cf"></div> -> <div class="submodule"></div> <button class="update">Update</button>
-        </div>
       </div>
 
+      <script id="sumbodule-repo-template" type="text/x-handlebars-template">
+        <h2>{{name}}</h2>
+        <div>
+          <div class="upstream-sha">{{upstreamSha}}</div>
+           -> 
+          <div class="submodule-sha">{{submoduleSha}}</div> 
+          <button class="btn btn-primary update">Update</button>
+        </div>
+      </script>
       
     </div>
   </body>
