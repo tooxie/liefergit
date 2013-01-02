@@ -256,7 +256,7 @@ $(document).ready(function(){
     var submodules;
 
 
-    $('#connect').click(function () {
+    $('.connect').click(function () {
         var clientId = '1c5ca6611f3f2ca17021';
 
         liefergit.create(clientId, function(lGit){
@@ -266,7 +266,7 @@ $(document).ready(function(){
         });
 
     });
-
+    $(".submodules").hide();
     var cfRepoLatest;
 
     function initRepoViews(){
@@ -293,9 +293,12 @@ $(document).ready(function(){
                 originRepo: originRepo,
                 upstreamRepo: upstreamRepo
             });
-            $(".main").append(submoduleView.render().el);
+            $(".submodules").append(submoduleView.render().el);
         });
 
+        $(".header").fadeOut(function(){
+            $(".submodules").fadeIn();
+        });
     }
 
 });
