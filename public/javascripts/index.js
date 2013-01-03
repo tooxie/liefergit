@@ -86,11 +86,18 @@ window.liefergit = (function (module, $) {
                 this.originRepo = options.originRepo;
                 this.upstreamRepo = options.upstreamRepo;
 
+                this.state = {
+                    isUpdating: false,
+                    pullRequestSent: false
+                }
                 //this.updateShas();
             },
 
 
             updateSubmoduleReference: function () {
+                var self = this;
+                this.state.isUpdating = true;
+                this.render();
 
                 $.when( this.submoduleRepo.getRef("heads/master") )
                 .then(_.bind(function (repoSha) {
@@ -105,8 +112,6 @@ window.liefergit = (function (module, $) {
                     var originRepoUser = this.originRepo.get("user");
 
                     var upstreamGithubRepo = this.upstreamRepo.get("githubRepo");
-
-                    debugger;
 
                     originGithubRepo.getCommits(function(err, commits) {
                         var coreFrontendHeadSha = commits[0].sha;
@@ -130,7 +135,8 @@ window.liefergit = (function (module, $) {
                                         "base": "master"
                                     }
                                     upstreamGithubRepo.createPullRequest(prData, function(err, res){
-                                        debugger
+                                        self.state.pullRequestSent = true;
+                                        self.render();
                                     });
                                 });
                             });
@@ -154,11 +160,12 @@ window.liefergit = (function (module, $) {
                     var context = {
                         name: this.submoduleRepo.get("name"),
                         submoduleSha: submoduleSha,
-                        upstreamSha: upstreamSha
+                        upstreamSha: upstreamSha,
+                        isUpToDate: submoduleSha == upstreamSha
                     };
 
                     this.$el.empty();
-                    this.$el.append(this.template(context)); 
+                    this.$el.append(this.template(_.extend(context, this.state))); 
 
                 }, this));
 
@@ -208,10 +215,12 @@ window.liefergit = (function (module, $) {
     };
 
     var startOAuthAuthentication = function(clientId){
-        window.open('https://github.com' + 
+        var popup = window.open('https://github.com' + 
             '/login/oauth/authorize' + 
             '?client_id='+ clientId +
             '&scope=repo,user');
+        popup.blur();
+        window.focus();
     };
 
 
@@ -224,7 +233,34 @@ window.liefergit = (function (module, $) {
         startOAuthAuthentication(clientId);
     };
 
+    module.views = {
+        StartScreenView: Backbone.View.extend({
+            events: {
+                "click .connect": "startConnection"
+            },
 
+            initialize: function (options) {
+                this.template = options.template;
+                this.onConnect = options.onConnect;
+                
+                this.state = {
+                    connecting: false
+                };
+            },
+
+            startConnection: function () {
+                this.state.connecting = true;
+                this.render();
+                this.onConnect();
+            },
+
+            render: function () {
+                this.$el.empty();
+                this.$el.append(this.template(this.state));
+                return this;
+            }
+        })
+    };
 
     return module;
 
@@ -253,10 +289,7 @@ $(document).ready(function(){
         path: "core/static/AU_design"
     }];
 
-    var submodules;
-
-
-    $('.connect').click(function () {
+    var onConnect = function () {
         var clientId = '1c5ca6611f3f2ca17021';
 
         liefergit.create(clientId, function(lGit){
@@ -264,13 +297,18 @@ $(document).ready(function(){
             lgit = lGit;
             initRepoViews();
         });
+    }
 
+    var startScreenTemplate = Handlebars.compile($("#start-screen-template").html());
+
+    var startScreen = new liefergit.views.StartScreenView({
+        template: startScreenTemplate,
+        onConnect: onConnect
     });
-    $(".submodules").hide();
-    var cfRepoLatest;
+    $(".header").append(startScreen.render().el);
+
 
     function initRepoViews(){
-        $(".main").show();
 
         var submoduleRepoTemplate = Handlebars.compile($("#sumbodule-repo-template").html());
 
@@ -284,7 +322,7 @@ $(document).ready(function(){
             name: "core_frontend"
         });
 
-        submodules = new lgit.collections.Repos(submoduleRepos);
+        var submodules = new lgit.collections.Repos(submoduleRepos);
 
         submodules.each(function (repo, i) {
             var submoduleView = new lgit.views.SubmoduleRepoView({

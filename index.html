@@ -11,6 +11,7 @@
 
     <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet">
     <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="/stylesheets/font-awesome.min.css">
 
     <script src="/javascripts/github.js"></script>
     <script src="/javascripts/index.js"></script>
@@ -27,11 +28,7 @@
     </div>
     <div id="wrapper" class="container">
       <div class="header">
-        <div class="jumbotron">
-          <h1>Liefergit!</h1>
-          <p class="lead">Press the button and start updating.</p>
-          <a class="btn btn-large btn-success connect" href="#">Start</a>
-        </div>
+      
       </div>
       <div class="main">
         <div class="row">
@@ -41,19 +38,44 @@
         </div>
       </div>
 
+      <script id="start-screen-template" type="text/x-handlebars-template">
+        <div class="jumbotron">
+          <h1>Liefergit!</h1>
+          {{#if connecting}}
+            <p class="lead">&nbsp;</p>
+            <i class='icon-spinner icon-spin icon-3x'></i>
+          {{else}}
+            <p class="lead">Press the button and start updating.</p>
+            <a class="btn btn-large btn-success connect" href="#">Start</a>
+          {{/if}}
+        </div>
+      </script>
+      
       <script id="sumbodule-repo-template" type="text/x-handlebars-template">
-
         <div class="row">
           <div class="span10">
-            <h4 class="media-heading">{{name}}</h4>
+            <h4>{{name}}</h4>
             <p>{{upstreamSha}} -> {{submoduleSha}}</p>
           </div>
           <div class="span2">
-            <a class="btn btn-link pull-right update" href="#">
-              Update
-            </a>
+            {{#if isUpToDate}}
+              <span class="btn btn-link pull-right status-indicator status-ok">
+                <i class="icon icon-ok icon-2x"></i>
+              </span>
+            {{else}}
+              {{#if pullRequestSent}}
+                <span class="btn btn-link pull-right status-indicator status-ok">
+                  <i class="icon icon-cloud-upload icon-2x"></i>
+                </span>
+              {{else}}
+                <a class="btn btn-link pull-right update status-indicator" href="#">
+                  <i class="icon icon-repeat icon-2x {{#if isUpdating}} icon-spin {{/if}}"></i>
+                </a>
+              {{/if}}
+            {{/if}}
           </div>
         </div>
+        <hr>
       </script>
       
     </div>
