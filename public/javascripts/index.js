@@ -1,5 +1,24 @@
 window.liefergit = (function (module, $) {
 
+    var deferAsyncCall = function (asyncFunct) {
+        var deferred = $.Deferred();
+        var args = Array.prototype.slice.call(arguments);
+        var asyncFunctArguments = _.rest(args);
+
+        var asyncFunctArgumentsWithCallback = asyncFunctArguments;
+        asyncFunctArgumentsWithCallback.push(function (err, result) {
+            if (err) {
+                deferred.reject(err);
+            } 
+            else {
+                deferred.resolve(result);
+            }
+        });
+        asyncFunct.apply(null, asyncFunctArgumentsWithCallback);
+
+        return deferred;
+    };
+
     var createModels = function (lgit) {
         var models = {
             Repo: Backbone.Model.extend({
@@ -12,12 +31,8 @@ window.liefergit = (function (module, $) {
                 },
 
                 getTree: function (branch) {
-                    var treeDeferred = $.Deferred();
                     var githubRepo = this.get('githubRepo');
-                    githubRepo.getTree(branch + '?recursive=true', function(err, tree) {
-                        treeDeferred.resolve(tree);
-                    });
-                    return treeDeferred;
+                    return deferAsyncCall(githubRepo.getTree, branch + '?recursive=true');
                 },
 
                 getShaForPath: function (path) {
@@ -34,21 +49,13 @@ window.liefergit = (function (module, $) {
                 },
 
                 getRef: function (ref) {
-                    var refDeferred = $.Deferred();
                     var githubRepo = this.get('githubRepo');
-                    githubRepo.getRef(ref, function (err, sha) {
-                        refDeferred.resolve(sha);
-                    });
-                    return refDeferred;
+                    return deferAsyncCall(githubRepo.getRef, ref);
                 },
 
                 getCommits: function () {
-                    var commitsDeferred = $.Deferred();
                     var githubRepo = this.get('githubRepo');
-                    githubRepo.getCommits(function (err, commits) {
-                        commitsDeferred.resolve(commits);
-                    });
-                    return commitsDeferred;
+                    return deferAsyncCall(githubRepo.getCommits);
                 },
 
                 getCommit: function (sha) {
