@@ -45,10 +45,22 @@ window.liefergit = (function (module, $) {
                 getCommits: function () {
                     var commitsDeferred = $.Deferred();
                     var githubRepo = this.get('githubRepo');
-                    githubRepo.getRef(ref, function (err, commits) {
+                    githubRepo.getCommits(function (err, commits) {
                         commitsDeferred.resolve(commits);
                     });
                     return commitsDeferred;
+                },
+
+                getCommit: function (sha) {
+                    var commitDeferred = $.Deferred();
+                    var commitsDeferred = this.getCommits();
+
+                    $.when(commitsDeferred)
+                    .then(function (commits) {
+                        var commit = _.where(commits, {sha: sha})[0];
+                        commitDeferred.resolve(commit);
+                    });
+                    return commitDeferred;
                 }
 
 
