@@ -167,17 +167,26 @@ window.liefergit = (function (module, $) {
                 var submoduleShaDeferred = this.submoduleRepo.getRef("heads/master");
                 var upstreamShaDeferred = this.upstreamRepo.getShaForPath(repoPath);
 
-                $.when(submoduleShaDeferred, upstreamShaDeferred).then(_.bind(function (submoduleSha, upstreamSha) {
+                $.when(submoduleShaDeferred, upstreamShaDeferred)
+                .then(_.bind(function (submoduleSha, upstreamSha) {
+                    var submoduleCommitDeferred = this.submoduleRepo.getCommit(submoduleSha);
+                    var upstreamCommitDeferred = this.upstreamRepo.getCommit(upstreamSha);
 
-                    var context = {
-                        name: this.submoduleRepo.get("name"),
-                        submoduleSha: submoduleSha,
-                        upstreamSha: upstreamSha,
-                        isUpToDate: submoduleSha == upstreamSha
-                    };
+                    //!TODO How to get upstream commit
+                    $.when(submoduleCommitDeferred, upstreamCommitDeferred)
+                    .then(_.bind(function (submoduleCommit, upstreamCommit) {
+                        var context = {
+                            name: this.submoduleRepo.get("name"),
+                            submoduleSha: submoduleSha,
+                            submoduleCommitMessage: submoduleCommit.commit.message,
+                            upstreamCommitMessage: "N/A",//upstreamCommit.commit.message,
+                            upstreamSha: upstreamSha,
+                            isUpToDate: submoduleSha == upstreamSha
+                        };
 
-                    this.$el.empty();
-                    this.$el.append(this.template(_.extend(context, this.state))); 
+                        this.$el.empty();
+                        this.$el.append(this.template(_.extend(context, this.state))); 
+                    }, this));
 
                 }, this));
 
@@ -260,11 +269,11 @@ window.liefergit = (function (module, $) {
                 };
             },
 
-            startConnection: function () {
+            startConnection: _.once(function () {
                 this.state.connecting = true;
                 this.render();
                 this.onConnect();
-            },
+            }),
 
             render: function () {
                 this.$el.empty();
@@ -305,7 +314,6 @@ $(document).ready(function(){
         var clientId = '1c5ca6611f3f2ca17021';
 
         liefergit.create(clientId, function(lGit){
-            userObj = lGit.user;
             lgit = lGit;
             initRepoViews();
         });
@@ -317,10 +325,11 @@ $(document).ready(function(){
         template: startScreenTemplate,
         onConnect: onConnect
     });
+
     $(".header").append(startScreen.render().el);
 
 
-    function initRepoViews(){
+    function initRepoViews () {
 
         var submoduleRepoTemplate = Handlebars.compile($("#sumbodule-repo-template").html());
 

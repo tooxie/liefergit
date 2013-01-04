@@ -1,9 +1,3 @@
-.ub,.cd,.au {
-  > * {
-    display: inline-block;
-  }
-}
-
 body {
 	margin-top: 80px;
 }
@@ -22,6 +16,42 @@ body {
 	padding: 14px 24px;
 }
 
+.repo-view-details {
+	position: relative;
+	height: 100px;
+}
+
+.repo-view-details .front, .repo-view-details .back {
+	-webkit-backface-visibility: hidden;
+	-webkit-transform-style: preserve-3d;
+  	-webkit-transition: all .5s;	
+  	position: absolute;
+}
+
+.repo-view-details:hover .front {
+	/*-webkit-transform: translateX(-1000px);*/
+	-webkit-transform: rotateX(180deg);
+	opacity: 0;
+}
+
+.repo-view-details .back {
+	/*-webkit-transform: translateX(-1000px);*/
+	-webkit-transform: rotateX(-180deg);
+	opacity: 0;
+}
+
+.repo-view-details:hover .back {
+	/*-webkit-transform: translateX(0px);*/
+	-webkit-transform: rotateX(0deg);
+
+	opacity: 1;
+}
+
+.status-indicator:hover{
+	text-decoration: none;
+}
+
+
 .status-indicator {
 	margin-top: 24px;
 }
@@ -29,3 +59,4 @@ body {
 .status-indicator.status-ok {
 	color: #51A351;
 }
+
