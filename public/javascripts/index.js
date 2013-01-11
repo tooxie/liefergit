@@ -353,9 +353,9 @@ window.liefergit = (function (module, $) {
 $(document).ready(function(){
     var lgit;
 
-    var upstream_user = "TimBeyer";
-    //var repo_user = "delivero";
-    var repo_user = "codazzo";
+    var upstream_user = "delivero";
+    var repo_user = "delivero";
+
     var branch_name = "master";
     var subrepoBranchName = "master"; //the branch which will be used to issue the PR's against upstream
 
