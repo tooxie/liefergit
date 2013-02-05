@@ -57,7 +57,7 @@ $(document).ready(function(){
 
     function initRepoViews () {
 
-        var submoduleRepoTemplate = Handlebars.compile($("#sumbodule-repo-template").html());
+        var submoduleRepoTemplate = Handlebars.compile($("#submodule-repo-template").html());
 
         upstreamRepo = new lgit.models.Repo({
             user: upstream_user,
