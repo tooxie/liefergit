@@ -14,7 +14,14 @@
     <link rel="stylesheet" href="/stylesheets/font-awesome.min.css">
 
     <script src="/javascripts/github.js"></script>
+    <script src="/javascripts/liefergit.js"></script>
+    <script src="/javascripts/StartScreenView.js"></script>
+    <script src="/javascripts/SubmoduleRepoView.js"></script>
+    <script src="/javascripts/SubmoduleReferenceUpdater.js"></script>
     <script src="/javascripts/index.js"></script>
+    <script src="/javascripts/repo.js"></script>
+    <script src="/javascripts/repos.js"></script>
+
     <link rel="stylesheet/less" type="text/css" href="/stylesheets/styles.less">
     <script src="http://cloud.github.com/downloads/cloudhead/less.js/less-1.3.1.min.js"></script>
   </head>
@@ -51,7 +58,7 @@
         </div>
       </script>
       
-      <script id="sumbodule-repo-template" type="text/x-handlebars-template">
+      <script id="submodule-repo-template" type="text/x-handlebars-template">
         <div class="row repo-view">
           <div class="span10 repo-view-details">
               <h4>{{name}}</h4>
