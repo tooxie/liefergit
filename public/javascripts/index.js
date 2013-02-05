@@ -1,9 +1,8 @@
 
 $(document).ready(function(){
-    var lgit;
 
-    var upstream_user = "delivero";
-    var repo_user = "delivero";
+    var upstream_user = "codazzo";
+    var repo_user = "TimBeyer";
 
     var branch_name = "master";
     var subrepoBranchName = "master"; //the branch which will be used to issue the PR's against upstream
@@ -36,45 +35,35 @@ $(document).ready(function(){
         path: "core/static/AU_design"
     }];
 
-    var onConnect = function () {
-        var clientId = '1c5ca6611f3f2ca17021';
 
-        liefergit.create(clientId, function(lGit){
-            lgit = lGit;
-            initRepoViews();
-        });
-    }
-
-    var startScreenTemplate = Handlebars.compile($("#start-screen-template").html());
-
-    var startScreen = new liefergit.views.StartScreenView({
-        template: startScreenTemplate,
-        onConnect: onConnect
+    var startScreen = new StartScreenView({
+        template: Handlebars.compile($("#start-screen-template").html()),
+        onConnect: function () {
+            var clientId = '1c5ca6611f3f2ca17021';
+            liefergit.create(clientId, initRepoViews);
+        }
     });
 
     $(".header").append(startScreen.render().el);
 
-
-    function initRepoViews () {
-
+    function initRepoViews() {
         var submoduleRepoTemplate = Handlebars.compile($("#submodule-repo-template").html());
 
-        upstreamRepo = new lgit.models.Repo({
+        upstreamRepo = new Repo({
             user: upstream_user,
             name: "core_frontend"
         });
 
-        originRepo = new lgit.models.Repo({
+        originRepo = new Repo({
             user: repo_user,
             name: "core_frontend"
         });
 
-        var originSubmodules = new lgit.collections.Repos(submoduleRepos);
-        var upstreamSubmodules = new lgit.collections.Repos(upstreamSubmoduleRepos);
-
+        var originSubmodules = new Repos(submoduleRepos);
+        var upstreamSubmodules = new Repos(upstreamSubmoduleRepos);
 
         originSubmodules.each(function (repo, i) {
-            var submoduleView = new lgit.views.SubmoduleRepoView({
+            var submoduleView = new SubmoduleRepoView({
                 template: submoduleRepoTemplate,
                 submoduleRepo: repo,
                 upstreamSubmoduleRepo: upstreamSubmodules.where({name: repo.get("name")})[0],
